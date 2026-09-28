@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>COOKED - 12h Global Meme Arena</title>
-
-  <!-- Modern Core Libraries -->
+  <title>COOKED</title>
+  
+  <!-- Modern CDN Stack -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -13,11 +13,11 @@
       theme: {
         extend: {
           colors: {
-            brand: { orange: '#ea580c', dark: '#0b0e14', light: '#f8fafc' }
+            brand: '#ea580c'
           }
         }
       }
-    }
+    };
   </script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -31,7 +31,7 @@
       user-select: none;
       -webkit-tap-highlight-color: transparent;
       overflow-x: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     @keyframes screenShake {
       0% { transform: translate(2px, 1px) rotate(0deg); }
@@ -42,155 +42,97 @@
       100% { transform: translate(1px, -2px) rotate(-1deg); }
     }
     .shake-active { animation: screenShake 0.3s infinite ease-in-out; }
-    ::-webkit-scrollbar { width: 3px; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
   </style>
 </head>
-<body class="flex justify-center min-h-screen bg-slate-100 dark:bg-[#07090e] text-slate-900 dark:text-slate-100 transition-colors duration-200">
+<body class="flex justify-center min-h-screen bg-slate-100 dark:bg-[#07090e] text-slate-900 dark:text-slate-100 transition-colors">
 
 <div id="root" class="w-full max-w-md min-h-screen flex flex-col bg-white dark:bg-[#0b0e14] border-x border-slate-200 dark:border-[#1a2233] relative pb-20 shadow-2xl"></div>
 
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-// ==========================================
-// 1. SUPABASE CLIENT & BACKEND CONFIG
-// ==========================================
+// --- PASTE YOUR SUPABASE KEYS HERE ---
 const SUPABASE_URL = "https://bivhoztjletdxhyehonx.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpdmhvenRqbGV0ZHhoeWVob254Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2MTgzNzksImV4cCI6MjEwNjE5NDM3OX0.l9gXu35qxhYLUf2cVXXL4KUEH20rE7aOld5D1iGz7hE";
 
-const isSupabaseLive = (
+const isLive = (
   SUPABASE_URL !== "https://bivhoztjletdxhyehonx.supabase.co" &&
   SUPABASE_ANON_KEY !== "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpdmhvenRqbGV0ZHhoeWVob254Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2MTgzNzksImV4cCI6MjEwNjE5NDM3OX0.l9gXu35qxhYLUf2cVXXL4KUEH20rE7aOld5D1iGz7hE" &&
   SUPABASE_URL.startsWith("https://")
 );
 
-const supabase = isSupabaseLive
-  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  : null;
+const supabase = isLive ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-// ==========================================
-// 2. PROFANITY & AUTO-MODERATION ENGINE
-// ==========================================
-class ContentFilterEngine {
-  constructor() {
-    this.slurs = ["nigger", "nigga", "faggot", "retard", "kike", "chink", "pedophile", "kys", "kill yourself"];
-    this.vulgar = ["fuck", "shit", "bitch", "cunt", "whore", "slut", "dick", "pussy", "asshole"];
-    this.leetspeak = { '@':'a', '4':'a', '$':'s', '5':'s', '0':'o', '1':'i', '!':'i', '3':'e', '7':'t' };
-  }
-
-  normalize(str) {
-    let clean = str.toLowerCase();
-    for (const [k, v] of Object.entries(this.leetspeak)) clean = clean.split(k).join(v);
-    return clean.replace(/[^a-z0-9]/g, "");
-  }
-
-  evaluate(text) {
-    const raw = text.toLowerCase();
-    const clean = this.normalize(text);
-
-    for (const s of this.slurs) {
-      if (raw.includes(s) || clean.includes(s)) {
-        return { safe: false, reason: "Severe slurs or hate speech prohibited.", level: "REJECT" };
-      }
-    }
-    if (/https?:\/\/|\.gg\/|\.com/i.test(text)) {
-      return { safe: false, reason: "External links are strictly prohibited.", level: "REJECT" };
-    }
-    for (const v of this.vulgar) {
-      if (raw.includes(v) || clean.includes(v)) {
-        return { safe: false, reason: "Excessive Vulgarity", level: "FLAG" };
-      }
-    }
-    return { safe: true, reason: "Approved", level: "CLEAN" };
-  }
+// Built-in bad word filter
+const BANNED_WORDS = ["nigger", "nigga", "faggot", "retard", "kike", "chink", "pedophile", "kys"];
+function containsSlurs(text) {
+  const clean = text.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return BANNED_WORDS.some(w => clean.includes(w));
 }
 
-const filterEngine = new ContentFilterEngine();
-
-// ==========================================
-// 3. MAIN REACT APPLICATION
-// ==========================================
-function CookedApp() {
+function App() {
   const [tab, setTab] = useState('duel'); // duel | cook | hall | profile | admin
   const [flameTaps, setFlameTaps] = useState(0);
 
-  // App Master Configurations
+  // App Configurations
   const [adminPin, setAdminPin] = useState('1337');
   const [submissionsOpen, setSubmissionsOpen] = useState(true);
   const [votingOpen, setVotingOpen] = useState(true);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [adminBroadcast, setAdminBroadcast] = useState('');
   const [activeImage, setActiveImage] = useState('https://images.unsplash.com/photo-1543852786-1cf6624b9987?w=800');
+  const [activeCaption, setActiveCaption] = useState('WHEN THE CODE COMPILES ON THE VERY FIRST TRY');
 
-  // Admin Cockpit State
+  // Admin Cockpit
   const [enteredPin, setEnteredPin] = useState('');
   const [isAdminAuth, setIsAdminAuth] = useState(false);
   const [newPinInput, setNewPinInput] = useState('');
-  const [pinNotice, setPinNotice] = useState(false);
+  const [isShaking, setIsShaking] = useState(false);
 
-  // Chaos States
-  const [isEarthquake, setIsEarthquake] = useState(false);
-  const [screenSticker, setScreenSticker] = useState(null);
+  // User Profile
+  const [username, setUsername] = useState(() => localStorage.getItem('c_user') || `@chef_${Math.floor(1000 + Math.random() * 9000)}`);
+  const [avatar, setAvatar] = useState(() => localStorage.getItem('c_avatar') || 'fa-hat-chef');
+  const [title, setTitle] = useState(() => localStorage.getItem('c_title') || 'Line Cook');
+  const [spices, setSpices] = useState(() => parseInt(localStorage.getItem('c_spices') || '25', 10));
+  const [userStatus, setUserStatus] = useState('');
 
-  // User Profile State (Strict @ prefix & unique handle)
-  const [usernameInput, setUsernameInput] = useState(() => localStorage.getItem('cooked_username') || `@Chef_${Math.floor(1000 + Math.random() * 9000)}`);
-  const [userProfile, setUserProfile] = useState(() => ({
-    avatar: localStorage.getItem('cooked_avatar') || 'fa-hat-chef',
-    title: localStorage.getItem('cooked_title') || 'Line Cook',
-    spices: parseInt(localStorage.getItem('cooked_spices') || '25', 10),
-    lastVotedTimestamp: parseInt(localStorage.getItem('cooked_last_voted') || '0', 10)
-  }));
-  const [usernameStatus, setUsernameStatus] = useState({ state: 'idle', msg: '' });
-
-  // Notifications / Inbox State
+  // Notifications
   const [notifications, setNotifications] = useState([]);
   const [showInbox, setShowInbox] = useState(false);
-  const [inboxTargetUser, setInboxTargetUser] = useState('');
-  const [inboxTitle, setInboxTitle] = useState('');
-  const [inboxMessage, setInboxMessage] = useState('');
+  const [customUser, setCustomUser] = useState('');
+  const [customTitle, setCustomTitle] = useState('');
+  const [customMsg, setCustomMsg] = useState('');
 
-  // Drop Submissions (Users uploading memes for the duel)
-  const [uploadImageUrl, setUploadImageUrl] = useState('');
-  const [uploadSuggestedCaption, setUploadSuggestedCaption] = useState('');
-  const [pendingDropSubmissions, setPendingDropSubmissions] = useState([]);
+  // Submissions (User uploading meme file or URL)
+  const [submitCaption, setSubmitCaption] = useState('');
+  const [submitFile, setSubmitFile] = useState(null);
+  const [submitUrl, setSubmitUrl] = useState('');
+  const [pendingDrops, setPendingDrops] = useState([]);
 
-  // Voting Loop & Duels
+  // Duels
   const [captions, setCaptions] = useState([]);
-  const [activePair, setActivePair] = useState([0, 1]);
+  const [pair, setPair] = useState([0, 1]);
   const [votedChoice, setVotedChoice] = useState(null);
 
-  // Scheduled Drops & Hall
-  const [scheduledDrops, setScheduledDrops] = useState([]);
-  const [calDate, setCalDate] = useState(new Date().toISOString().split('T')[0]);
-  const [calTitle, setCalTitle] = useState('');
-  const [calUrl, setCalUrl] = useState('');
-
-  // Automated Server-Stitched Meme Canvas Ref
-  const hallCanvasRef = useRef(null);
-  const [hallStitchedImage, setHallStitchedImage] = useState(null);
+  // Hall of Fame Stitched Meme Data
+  const [crownedMemeUrl, setCrownedMemeUrl] = useState(null);
 
   useEffect(() => {
-    loadAppData();
-    loadNotifications();
-  }, [usernameInput]);
+    loadLiveState();
+    loadInbox();
+  }, [username]);
 
-  // Initial Sync from Supabase
-  const loadAppData = async () => {
-    if (!isSupabaseLive) {
+  // Load from Supabase
+  const loadLiveState = async () => {
+    if (!isLive) {
       setCaptions([
-        { id: '1', author: '@SnoopChef', text: 'Me checking the fridge for the 4th time hoping new snacks spawned', wins: 84, losses: 16, flagged: false },
-        { id: '2', author: '@ToastGod', text: 'My last brain cell calculating 7 + 8 on fingers during the exam', wins: 62, losses: 38, flagged: false },
-        { id: '3', author: '@CatOverlord', text: 'Walking past the microwave with 00:01 left like a SWAT defuser', wins: 41, losses: 29, flagged: false },
-        { id: '4', author: '@SpamKing', text: 'FREE DISCORD ROBUX AIRDROP CLICK PROFILE', wins: 1, losses: 99, flagged: true, flag_reason: 'External link' }
+        { id: '1', author: '@SnoopChef', text: 'Checking the fridge at 3 AM hoping a feast miraculously spawned', wins: 42, losses: 11 },
+        { id: '2', author: '@ToastGod', text: 'Calculating 7 + 8 on fingers just to be 100% sure in the exam', wins: 38, losses: 14 }
       ]);
-      setPendingDropSubmissions([
-        { id: 'sub1', author: '@HamsterFan', image_url: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?w=800', suggested_caption: 'Staring into soul', status: 'pending' }
+      setPendingDrops([
+        { id: 'p1', author: '@HamsterFan', image_url: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?w=800', caption: 'Staring into soul' }
       ]);
-      setScheduledDrops([
-        { id: 'd1', target_date: '2026-09-29', title: 'Raccoon Trash Heist', image_url: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?w=800' }
-      ]);
-      generateServerMemeHeader("WHEN THE EXAM STARTS WITH QUESTION 1: CHOOSE A GOD", "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=800", "@MemeSavant");
+      stitchServerHeader(activeCaption, activeImage, '@MemeSavant');
       return;
     }
 
@@ -203,40 +145,37 @@ function CookedApp() {
         setMaintenanceMode(config.maintenance_mode);
         setAdminBroadcast(config.admin_broadcast || '');
         if (config.active_image) setActiveImage(config.active_image);
+        if (config.active_caption) setActiveCaption(config.active_caption);
       }
 
       const { data: caps } = await supabase.from('captions').select('*').order('created_at', { ascending: false });
       if (caps && caps.length >= 2) setCaptions(caps);
 
-      const { data: subs } = await supabase.from('drop_submissions').select('*').eq('status', 'pending');
-      if (subs) setPendingDropSubmissions(subs);
+      const { data: drops } = await supabase.from('drop_submissions').select('*').eq('status', 'pending');
+      if (drops) setPendingDrops(drops);
 
-      const { data: drops } = await supabase.from('scheduled_calendar_drops').select('*').order('target_date', { ascending: true });
-      if (drops) setScheduledDrops(drops);
-
-      generateServerMemeHeader("WHEN THE EXAM STARTS WITH QUESTION 1: CHOOSE A GOD", activeImage, "@MemeSavant");
+      stitchServerHeader(config?.active_caption || activeCaption, config?.active_image || activeImage, '@MemeSavant');
     } catch (e) {
-      console.error('Data sync failed:', e);
+      console.error(e);
     }
   };
 
-  // Load User Inbox
-  const loadNotifications = async () => {
-    if (!isSupabaseLive) {
+  const loadInbox = async () => {
+    if (!isLive) {
       setNotifications([
-        { id: 'n1', title: 'Welcome to COOKED!', message: 'Vote every 12 hours to claim +5 free Spices.', is_read: false, created_at: new Date().toISOString() }
+        { id: 'n1', title: 'Welcome to COOKED!', message: 'Vote once every 12h in the Arena to claim +5 Spices.' }
       ]);
       return;
     }
     const { data } = await supabase.from('user_notifications')
       .select('*')
-      .eq('target_username', usernameInput.toLowerCase())
+      .eq('target_username', username.toLowerCase())
       .order('created_at', { ascending: false });
     if (data) setNotifications(data);
   };
 
-  // Automated Server-Style Canvas Stitcher (White Header Box over Image)
-  const generateServerMemeHeader = (text, imgUrl, author) => {
+  // Pure Server-Style Auto Meme Stitcher (Puts text box up on top of the image)
+  const stitchServerHeader = (text, imgUrl, author) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
@@ -246,21 +185,21 @@ function CookedApp() {
     img.onload = () => {
       const width = 800;
       const height = 800;
-      const headerHeight = 180;
+      const headerH = 180;
       canvas.width = width;
-      canvas.height = height + headerHeight;
+      canvas.height = height + headerH;
 
-      // Solid White Top Header
+      // Solid White Top Header Block
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, width, headerHeight);
+      ctx.fillRect(0, 0, width, headerH);
 
-      // Black Impact/Inter Top Text
+      // Black Impact Text Inside Header
       ctx.fillStyle = "#000000";
       ctx.font = "bold 32px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
-      const words = text.toUpperCase().split(' ');
+      const words = (text || "CROWNED MEME").toUpperCase().split(' ');
       let line = '';
       const lines = [];
       for (let n = 0; n < words.length; n++) {
@@ -274,102 +213,90 @@ function CookedApp() {
       }
       lines.push(line);
 
-      const startY = (headerHeight / 2) - ((lines.length - 1) * 20) - 8;
-      lines.forEach((l, idx) => {
-        ctx.fillText(l.trim(), width / 2, startY + (idx * 40));
+      const startY = (headerH / 2) - ((lines.length - 1) * 20) - 10;
+      lines.forEach((l, i) => {
+        ctx.fillText(l.trim(), width / 2, startY + (i * 40));
       });
 
-      // Watermark
-      ctx.font = "bold 16px monospace";
+      // Attribution
+      ctx.font = "bold 15px monospace";
       ctx.fillStyle = "#ea580c";
-      ctx.fillText(`COOKED.APP • CROWNED MEME BY ${author}`, width / 2, headerHeight - 20);
+      ctx.fillText(`COOKED.APP • ${author.toUpperCase()}`, width / 2, headerH - 22);
 
-      // Draw Main Image Below
-      ctx.drawImage(img, 0, headerHeight, width, height);
+      // Draw Main Image Beneath Header
+      ctx.drawImage(img, 0, headerH, width, height);
 
-      setHallStitchedImage(canvas.toDataURL('image/png'));
+      setCrownedMemeUrl(canvas.toDataURL('image/png'));
     };
   };
 
-  // Unique Username Auto-Save & Debounce Engine
-  const handleUsernameChange = (rawInput) => {
-    // Force lowercase, remove whitespace, and keep non-deletable @
-    let clean = rawInput.trim().toLowerCase();
-    if (!clean.startsWith('@')) {
-      clean = '@' + clean.replace(/@/g, '');
-    }
-    setUsernameInput(clean);
-    setUsernameStatus({ state: 'checking', msg: 'Verifying uniqueness...' });
+  // Profile Auto-Save & Enforced Unique @ Handle
+  const handleHandleChange = (e) => {
+    let raw = e.target.value.toLowerCase().replace(/\s+/g, '');
+    if (!raw.startsWith('@')) raw = '@' + raw.replace(/@/g, '');
+    setUsername(raw);
+    setUserStatus('Checking uniqueness...');
   };
 
   useEffect(() => {
     const timer = setTimeout(async () => {
-      if (usernameInput.length < 3) {
-        setUsernameStatus({ state: 'error', msg: 'Handle too short (min 3 chars)' });
+      if (username.length < 3) {
+        setUserStatus('Minimum 3 characters');
         return;
       }
-
-      if (isSupabaseLive) {
-        const { data } = await supabase.from('user_profiles').select('username').eq('username', usernameInput);
-        if (data && data.length > 0 && usernameInput !== localStorage.getItem('cooked_username')) {
-          setUsernameStatus({ state: 'error', msg: 'Handle is already taken! Pick another.' });
+      if (isLive) {
+        const { data } = await supabase.from('user_profiles').select('username').eq('username', username);
+        if (data && data.length > 0 && username !== localStorage.getItem('c_user')) {
+          setUserStatus('⚠️ Handle taken! Choose another.');
           return;
         }
-
-        // Auto-save upsert
         await supabase.from('user_profiles').upsert({
-          username: usernameInput,
-          avatar: userProfile.avatar,
-          title: userProfile.title,
-          spices: userProfile.spices
+          username: username,
+          avatar: avatar,
+          title: title,
+          spices: spices
         }, { onConflict: 'username' });
       }
-
-      localStorage.setItem('cooked_username', usernameInput);
-      setUsernameStatus({ state: 'saved', msg: 'Handle auto-saved & verified unique!' });
-    }, 600);
-
+      localStorage.setItem('c_user', username);
+      localStorage.setItem('c_avatar', avatar);
+      localStorage.setItem('c_title', title);
+      localStorage.setItem('c_spices', spices.toString());
+      setUserStatus('✓ Auto-saved & unique');
+    }, 500);
     return () => clearTimeout(timer);
-  }, [usernameInput, userProfile.avatar, userProfile.title]);
+  }, [username, avatar, title]);
 
-  // 12-Hour Spices Reward Logic
+  // Voting & 12h Spices Earning
   const handleVote = async (choice) => {
     if (!votingOpen || votedChoice !== null || captions.length < 2) return;
     setVotedChoice(choice);
 
     const now = Date.now();
-    const twelveHoursMs = 12 * 60 * 60 * 1000;
-    let earnedSpices = false;
+    const lastVoted = parseInt(localStorage.getItem('c_last_voted') || '0', 10);
+    if (now - lastVoted > 12 * 60 * 60 * 1000) {
+      const nextSpices = spices + 5;
+      setSpices(nextSpices);
+      localStorage.setItem('c_spices', nextSpices.toString());
+      localStorage.setItem('c_last_voted', now.toString());
 
-    if (now - userProfile.lastVotedTimestamp > twelveHoursMs) {
-      const updatedSpices = userProfile.spices + 5;
-      setUserProfile(p => ({ ...p, spices: updatedSpices, lastVotedTimestamp: now }));
-      localStorage.setItem('cooked_spices', updatedSpices.toString());
-      localStorage.setItem('cooked_last_voted', now.toString());
-      earnedSpices = true;
-
-      // Add Inbox notification
       const notif = {
-        target_username: usernameInput.toLowerCase(),
+        target_username: username.toLowerCase(),
         title: '🔥 +5 Spices Claimed!',
-        message: 'You completed your 12-hour Arena vote duty. Keep climbing the ranks!'
+        message: 'You cast your 12-hour vote duty in the Arena.'
       };
-      if (isSupabaseLive) await supabase.from('user_notifications').insert([notif]);
+      if (isLive) await supabase.from('user_notifications').insert([notif]);
       setNotifications(prev => [notif, ...prev]);
+
+      if (window.confetti) window.confetti({ particleCount: 100, spread: 60 });
     }
 
-    const winIdx = choice === 'A' ? activePair[0] : activePair[1];
-    const loseIdx = choice === 'A' ? activePair[1] : activePair[0];
-    const win = captions[winIdx];
-    const lose = captions[loseIdx];
-
-    if (isSupabaseLive) {
+    const winIdx = choice === 'A' ? pair[0] : pair[1];
+    const loseIdx = choice === 'A' ? pair[1] : pair[0];
+    if (isLive) {
+      const win = captions[winIdx];
+      const lose = captions[loseIdx];
       if (win) await supabase.from('captions').update({ wins: (win.wins || 0) + 1 }).eq('id', win.id);
       if (lose) await supabase.from('captions').update({ losses: (lose.losses || 0) + 1 }).eq('id', lose.id);
-    }
-
-    if (earnedSpices && window.confetti) {
-      window.confetti({ particleCount: 120, spread: 70, origin: { y: 0.7 } });
     }
   };
 
@@ -379,103 +306,108 @@ function CookedApp() {
       const a = Math.floor(Math.random() * captions.length);
       let b = Math.floor(Math.random() * captions.length);
       while (b === a) b = Math.floor(Math.random() * captions.length);
-      setActivePair([a, b]);
+      setPair([a, b]);
     }
   };
 
-  // Submit User Image for Duel Approval
-  const handleSubmitImageForDuel = async () => {
-    if (!uploadImageUrl.trim()) return alert('Paste a valid direct image URL.');
-    const evalRes = filterEngine.evaluate(uploadSuggestedCaption);
-    if (evalRes.level === "REJECT") return alert(`Rejected: ${evalRes.reason}`);
+  // Submit User Meme (Upload file to Supabase Storage or paste URL)
+  const handleUploadMeme = async () => {
+    if (!submitCaption.trim()) return alert('Please enter a caption.');
+    if (containsSlurs(submitCaption)) return alert('Submission contains prohibited slurs.');
 
-    const item = {
-      author: usernameInput,
-      image_url: uploadImageUrl.trim(),
-      suggested_caption: uploadSuggestedCaption.trim(),
+    let finalImageUrl = submitUrl.trim();
+
+    if (submitFile && isLive) {
+      const ext = submitFile.name.split('.').pop();
+      const path = `${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
+      const { error } = await supabase.storage.from('memes').upload(path, submitFile);
+      if (error) return alert(`Upload error: ${error.message}`);
+      const { data } = supabase.storage.from('memes').getPublicUrl(path);
+      finalImageUrl = data.publicUrl;
+    }
+
+    if (!finalImageUrl) return alert('Please upload an image file or paste a direct image URL.');
+
+    const newSub = {
+      author: username,
+      image_url: finalImageUrl,
+      caption: submitCaption.trim(),
       status: 'pending'
     };
 
-    if (isSupabaseLive) {
-      await supabase.from('drop_submissions').insert([item]);
+    if (isLive) {
+      await supabase.from('drop_submissions').insert([newSub]);
     } else {
-      setPendingDropSubmissions([...pendingDropSubmissions, { ...item, id: Date.now().toString() }]);
+      setPendingDrops([...pendingDrops, { ...newSub, id: Date.now().toString() }]);
     }
 
-    setUploadImageUrl('');
-    setUploadSuggestedCaption('');
-    alert('🚀 Image submitted to Admin for duel verification!');
+    setSubmitCaption('');
+    setSubmitUrl('');
+    setSubmitFile(null);
+    alert('Meme sent to Admin for duel approval!');
+    setTab('duel');
   };
 
-  // Admin Approval: Approves image, sets as active drop, & notifies user
-  const handleAdminApproveSubmission = async (sub) => {
+  // Admin approves submission
+  const handleApproveSubmission = async (sub) => {
     setActiveImage(sub.image_url);
+    setActiveCaption(sub.caption);
 
-    // Send direct inbox message to submitting user
     const notif = {
       target_username: sub.author.toLowerCase(),
-      title: '🎉 Your Drop Was Approved!',
-      message: `Your submitted image has been crowned as the LIVE Arena Drop by Admin! You earned +25 Spices.`
+      title: '🎉 Your Meme Was Approved!',
+      message: 'Your drop is now LIVE in the Arena! You received +25 Spices.'
     };
 
-    if (isSupabaseLive) {
+    if (isLive) {
       await supabase.from('drop_submissions').update({ status: 'approved' }).eq('id', sub.id);
-      await supabase.from('app_config').update({ active_image: sub.image_url }).eq('id', 1);
+      await supabase.from('app_config').update({ active_image: sub.image_url, active_caption: sub.caption }).eq('id', 1);
       await supabase.from('user_notifications').insert([notif]);
+      const { data: prof } = await supabase.from('user_profiles').select('spices').eq('username', sub.author).single();
+      if (prof) await supabase.from('user_profiles').update({ spices: prof.spices + 25 }).eq('username', sub.author);
     }
 
-    setPendingDropSubmissions(pendingDropSubmissions.filter(x => x.id !== sub.id));
-    alert(`Approved! Notification delivered to ${sub.author}'s inbox.`);
+    stitchServerHeader(sub.caption, sub.image_url, sub.author);
+    setPendingDrops(pendingDrops.filter(x => x.id !== sub.id));
+    alert(`Approved! Notification sent to ${sub.author}`);
   };
 
-  // Admin Custom Inbox Dispatcher
-  const handleSendCustomNotification = async () => {
-    if (!inboxTargetUser.trim() || !inboxTitle.trim() || !inboxMessage.trim()) {
-      return alert('Fill out user, title, and message.');
-    }
-
-    const payload = {
-      target_username: inboxTargetUser.trim().toLowerCase(),
-      title: inboxTitle.trim(),
-      message: inboxMessage.trim()
+  // Admin custom notification dispatcher
+  const handleSendInbox = async () => {
+    if (!customUser || !customTitle || !customMsg) return alert('Fill out all inbox fields.');
+    const notif = {
+      target_username: customUser.toLowerCase().trim(),
+      title: customTitle.trim(),
+      message: customMsg.trim()
     };
-
-    if (isSupabaseLive) {
-      await supabase.from('user_notifications').insert([payload]);
+    if (isLive) await supabase.from('user_notifications').insert([notif]);
+    if (customUser.toLowerCase().trim() === username.toLowerCase()) {
+      setNotifications([notif, ...notifications]);
     }
-    if (inboxTargetUser.toLowerCase() === usernameInput.toLowerCase()) {
-      setNotifications([payload, ...notifications]);
-    }
-
-    setInboxTitle('');
-    setInboxMessage('');
-    alert(`Message delivered to ${inboxTargetUser}'s inbox!`);
+    setCustomTitle('');
+    setCustomMsg('');
+    alert(`Delivered to ${customUser}'s inbox!`);
   };
 
-  const capA = captions[activePair[0]] || captions[0];
-  const capB = captions[activePair[1]] || captions[1];
+  const capA = captions[pair[0]] || captions[0];
+  const capB = captions[pair[1]] || captions[1];
   const totA = (capA?.wins || 0) + (capA?.losses || 0);
   const totB = (capB?.wins || 0) + (capB?.losses || 0);
   const pctA = totA + totB === 0 ? 50 : Math.round((totA / (totA + totB)) * 100);
   const pctB = 100 - pctA;
 
   return (
-    <div class={`flex-1 flex flex-col justify-between ${isEarthquake ? 'shake-active' : ''}`}>
+    <div class={`flex-1 flex flex-col justify-between ${isShaking ? 'shake-active' : ''}`}>
 
-      {/* Top Banner Alert */}
+      {/* Broadcast Alert */}
       {adminBroadcast && (
         <div class="bg-red-600 px-4 py-2 text-xs font-black tracking-wide text-white flex justify-between items-center shadow-lg sticky top-0 z-30">
-          <span class="flex items-center space-x-1.5 truncate">
-            <i class="fa-solid fa-bullhorn text-[11px] animate-pulse"></i>
-            <span>{adminBroadcast}</span>
-          </span>
-          <button onClick={() => setAdminBroadcast('')} class="text-white ml-2">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
+          <span class="truncate"><i class="fa-solid fa-bullhorn mr-1.5"></i>{adminBroadcast}</span>
+          <button onClick={() => { setAdminBroadcast(''); if (isLive) supabase.from('app_config').update({ admin_broadcast: '' }).eq('id', 1); }}>✕</button>
         </div>
       )}
 
-      {/* Header Bar */}
+      {/* Top Bar */}
       <header class="p-4 flex items-center justify-between border-b border-slate-200 dark:border-[#1c2433] bg-white/90 dark:bg-[#111622]/90 backdrop-blur-md sticky top-0 z-20">
         <div class="flex items-center space-x-2">
           <button
@@ -484,32 +416,30 @@ function CookedApp() {
               if (next >= 3) { setFlameTaps(0); setTab('admin'); }
               else { setFlameTaps(next); setTimeout(() => setFlameTaps(0), 1200); }
             }}
-            class="text-xl font-black text-orange-600 dark:text-orange-500 tracking-wider flex items-center space-x-1 active:scale-95 transition"
+            class="text-xl font-black text-orange-600 dark:text-orange-500 tracking-wider flex items-center space-x-1 active:scale-95"
           >
             <i class="fa-solid fa-fire-flame-curved"></i>
             <span>COOKED</span>
           </button>
           <span class="text-[9px] bg-slate-200 dark:bg-[#1d2535] text-slate-600 dark:text-gray-400 font-mono px-2 py-0.5 rounded font-bold uppercase">
-            {isSupabaseLive ? 'LIVE' : 'PREVIEW'}
+            {isLive ? 'LIVE' : 'PREVIEW'}
           </span>
         </div>
 
         <div class="flex items-center space-x-2">
-          {/* Notifications Inbox Trigger */}
           <button
             onClick={() => setShowInbox(true)}
-            class="relative w-8 h-8 rounded-full bg-slate-100 dark:bg-[#171f2e] border border-slate-300 dark:border-[#232e42] flex items-center justify-center text-slate-700 dark:text-gray-300 text-xs active:scale-95"
+            class="relative w-8 h-8 rounded-full bg-slate-100 dark:bg-[#171f2e] border border-slate-300 dark:border-[#232e42] flex items-center justify-center text-xs active:scale-95"
           >
             <i class="fa-solid fa-bell"></i>
             {notifications.length > 0 && (
-              <span class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-black"></span>
+              <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-black"></span>
             )}
           </button>
 
-          {/* User Spices Counter */}
           <div class="flex items-center space-x-1.5 text-orange-600 dark:text-orange-400 font-bold bg-orange-50 dark:bg-[#171f2e] border border-orange-200 dark:border-orange-500/20 px-2.5 py-1 rounded-full text-xs font-mono">
-            <i class="fa-solid fa-pepper-hot text-xs"></i>
-            <span>{userProfile.spices}</span>
+            <i class="fa-solid fa-pepper-hot"></i>
+            <span>{spices}</span>
           </div>
         </div>
       </header>
@@ -519,27 +449,21 @@ function CookedApp() {
         <div class="flex-1 flex flex-col items-center justify-center p-6 text-center">
           <i class="fa-solid fa-screwdriver-wrench text-5xl text-orange-500 mb-4 animate-bounce"></i>
           <h2 class="text-xl font-black mb-2">Emergency Maintenance</h2>
-          <p class="text-xs text-gray-500 max-w-xs">The chef is cleaning the kitchen floor. Battles resume shortly.</p>
+          <p class="text-xs text-gray-500">The kitchen is closed for scrubbing. Battles resume shortly.</p>
         </div>
       ) : (
         <main class="flex-1 flex flex-col p-4 overflow-y-auto">
 
-          {/* TAB 1: ARENA DUEL SCREEN */}
+          {/* TAB 1: ARENA DUEL */}
           {tab === 'duel' && (
             <div class="flex-1 flex flex-col justify-between space-y-4">
               <div class="relative w-full h-64 bg-black rounded-2xl overflow-hidden border border-slate-200 dark:border-[#1e2638] shadow-2xl">
                 <img src={activeImage} class="w-full h-full object-cover" />
                 <div class="absolute top-2.5 right-2.5 bg-black/75 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-mono font-bold text-gray-300 border border-gray-700">
-                  <i class="fa-solid fa-bolt text-amber-400 mr-1"></i>DROP #42
+                  <i class="fa-solid fa-bolt text-amber-400 mr-1"></i>ACTIVE DROP
                 </div>
-                {screenSticker && (
-                  <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <span class="text-7xl animate-bounce">{screenSticker}</span>
-                  </div>
-                )}
               </div>
 
-              {/* Matchup Duel Cards */}
               <div class="space-y-3">
                 <button
                   disabled={!votingOpen}
@@ -554,10 +478,7 @@ function CookedApp() {
                 >
                   <p class="text-sm font-semibold leading-snug">{capA?.text}</p>
                   <div class="mt-2.5 flex justify-between items-center text-xs font-mono text-gray-500">
-                    <span class="flex items-center space-x-1">
-                      <i class="fa-solid fa-user-ninja text-[11px]"></i>
-                      <span>{capA?.author}</span>
-                    </span>
+                    <span><i class="fa-solid fa-user-ninja mr-1"></i>{capA?.author}</span>
                     {votedChoice !== null && <span class="text-emerald-500 font-bold">{pctA}%</span>}
                   </div>
                 </button>
@@ -577,81 +498,85 @@ function CookedApp() {
                 >
                   <p class="text-sm font-semibold leading-snug">{capB?.text}</p>
                   <div class="mt-2.5 flex justify-between items-center text-xs font-mono text-gray-500">
-                    <span class="flex items-center space-x-1">
-                      <i class="fa-solid fa-user-ninja text-[11px]"></i>
-                      <span>{capB?.author}</span>
-                    </span>
+                    <span><i class="fa-solid fa-user-ninja mr-1"></i>{capB?.author}</span>
                     {votedChoice !== null && <span class="text-emerald-500 font-bold">{pctB}%</span>}
                   </div>
                 </button>
               </div>
 
               {votedChoice !== null ? (
-                <button
-                  onClick={nextDuel}
-                  class="w-full py-3.5 bg-orange-600 hover:bg-orange-500 font-bold rounded-xl active:scale-95 transition flex items-center justify-center space-x-2 text-sm text-white shadow-lg"
-                >
-                  <span>Next Duel</span>
-                  <i class="fa-solid fa-arrow-right text-xs"></i>
+                <button onClick={nextDuel} class="w-full py-3.5 bg-orange-600 hover:bg-orange-500 font-bold rounded-xl active:scale-95 text-white shadow-lg">
+                  Next Duel →
                 </button>
               ) : (
                 <div class="flex justify-between items-center text-xs text-gray-500 px-2 font-medium">
                   <span>Vote once every 12h for +5 Spices</span>
-                  <button onClick={nextDuel} class="hover:text-orange-500 transition">
-                    Skip <i class="fa-solid fa-forward-step ml-1"></i>
-                  </button>
+                  <button onClick={nextDuel} class="hover:text-orange-500">Skip <i class="fa-solid fa-forward-step ml-1"></i></button>
                 </div>
               )}
             </div>
           )}
 
-          {/* TAB 2: COOK / SUBMISSION (UPLOAD IMAGE FOR DUEL) */}
+          {/* TAB 2: COOK (UPLOAD MEMES FOR THE DUEL) */}
           {tab === 'cook' && (
             <div class="flex-1 flex flex-col justify-between space-y-4">
               <div>
                 <h2 class="text-lg font-black mb-1 flex items-center space-x-2">
                   <i class="fa-solid fa-cloud-arrow-up text-orange-500"></i>
-                  <span>Submit Meme for Duel</span>
+                  <span>Upload Meme for Duel</span>
                 </h2>
-                <p class="text-xs text-gray-500 mb-4">Paste your image link. Approved entries go live as official drops and earn you +25 Spices.</p>
+                <p class="text-xs text-gray-500 mb-4">Send a meme for approval. Approved entries become active drops and earn you +25 Spices.</p>
 
-                <div class="space-y-3">
-                  <div>
-                    <label class="text-xs font-bold text-gray-500 block mb-1">Direct Image URL</label>
-                    <input
-                      type="text"
-                      placeholder="https://i.imgur.com/... or unsplash link"
-                      value={uploadImageUrl}
-                      onChange={(e) => setUploadImageUrl(e.target.value)}
-                      class="w-full bg-slate-50 dark:bg-[#111622] border border-slate-300 dark:border-[#1e2638] rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-orange-500"
-                    />
+                {!submissionsOpen ? (
+                  <div class="p-4 bg-red-950/20 border border-red-800 rounded-xl text-center text-xs text-red-400">
+                    🔒 Submissions are currently locked by the Admin.
                   </div>
-
-                  <div>
-                    <label class="text-xs font-bold text-gray-500 block mb-1">Suggested Caption (Optional)</label>
-                    <textarea
-                      placeholder="Give it a starting caption..."
-                      value={uploadSuggestedCaption}
-                      onChange={(e) => setUploadSuggestedCaption(e.target.value.slice(0, 65))}
-                      class="w-full bg-slate-50 dark:bg-[#111622] border border-slate-300 dark:border-[#1e2638] rounded-xl p-3 text-xs resize-none h-20 focus:outline-none focus:border-orange-500"
-                    ></textarea>
-                  </div>
-
-                  {uploadImageUrl && (
-                    <div class="h-40 rounded-xl overflow-hidden border border-slate-300 dark:border-gray-800 bg-black">
-                      <img src={uploadImageUrl} class="w-full h-full object-cover" />
+                ) : (
+                  <div class="space-y-3">
+                    <div>
+                      <label class="text-xs font-bold text-gray-500 block mb-1">Upload Image File</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setSubmitFile(e.target.files[0])}
+                        class="w-full text-xs font-mono file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-orange-600 file:text-white"
+                      />
                     </div>
-                  )}
-                </div>
+
+                    <div class="text-center text-[10px] font-black text-gray-400">OR DIRECT URL</div>
+
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="https://... direct image link"
+                        value={submitUrl}
+                        onChange={(e) => setSubmitUrl(e.target.value)}
+                        class="w-full bg-slate-50 dark:bg-[#111622] border border-slate-300 dark:border-[#1e2638] rounded-xl p-3 text-xs font-mono focus:outline-none focus:border-orange-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label class="text-xs font-bold text-gray-500 block mb-1">Meme Top Caption</label>
+                      <textarea
+                        placeholder="Type header caption..."
+                        value={submitCaption}
+                        onChange={(e) => setSubmitCaption(e.target.value.slice(0, 65))}
+                        class="w-full bg-slate-50 dark:bg-[#111622] border border-slate-300 dark:border-[#1e2638] rounded-xl p-3 text-xs h-20 resize-none focus:outline-none focus:border-orange-500"
+                      ></textarea>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <button
-                onClick={handleSubmitImageForDuel}
-                class="w-full py-3.5 bg-orange-600 hover:bg-orange-500 font-bold rounded-xl active:scale-95 transition text-white text-xs shadow-lg flex items-center justify-center space-x-2"
-              >
-                <i class="fa-solid fa-paper-plane"></i>
-                <span>Send to Admin for Approval</span>
-              </button>
+              {submissionsOpen && (
+                <button
+                  onClick={handleUploadMeme}
+                  class="w-full py-3.5 bg-orange-600 hover:bg-orange-500 font-bold rounded-xl active:scale-95 text-white text-xs shadow-lg flex items-center justify-center space-x-2"
+                >
+                  <i class="fa-solid fa-paper-plane"></i>
+                  <span>Submit to Admin</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -664,40 +589,32 @@ function CookedApp() {
               </h2>
 
               <div class="p-4 bg-slate-50 dark:bg-[#111622] rounded-2xl border border-slate-200 dark:border-[#1e2638] space-y-3 shadow-xl">
-                {/* Live Stitched Output Display */}
-                {hallStitchedImage && (
-                  <div class="rounded-xl overflow-hidden shadow-md border border-slate-300 dark:border-gray-800">
-                    <img src={hallStitchedImage} class="w-full h-auto block" />
+                {crownedMemeUrl && (
+                  <div class="rounded-xl overflow-hidden shadow border border-slate-300 dark:border-gray-800">
+                    <img src={crownedMemeUrl} class="w-full h-auto block" />
                   </div>
                 )}
 
                 <div class="flex justify-between items-center text-xs font-mono pt-1">
-                  <span class="text-orange-600 dark:text-orange-400 font-bold flex items-center space-x-1">
-                    <i class="fa-solid fa-crown text-amber-400"></i>
-                    <span>@MemeSavant</span>
-                  </span>
+                  <span class="text-orange-600 dark:text-orange-400 font-bold"><i class="fa-solid fa-crown mr-1"></i>Active Champion</span>
                   <span class="text-gray-400">92% Win Rate</span>
                 </div>
 
-                {/* Share Meme Button */}
                 <button
                   onClick={() => {
-                    if (navigator.share && hallStitchedImage) {
-                      fetch(hallStitchedImage)
-                        .then(res => res.blob())
-                        .then(blob => {
-                          const file = new File([blob], 'cooked-meme.png', { type: 'image/png' });
-                          navigator.share({ title: 'Crowned on COOKED', files: [file] });
-                        })
-                        .catch(() => alert('Saved image to clipboard!'));
-                    } else {
+                    if (navigator.share && crownedMemeUrl) {
+                      fetch(crownedMemeUrl).then(r => r.blob()).then(blob => {
+                        const file = new File([blob], 'cooked-meme.png', { type: 'image/png' });
+                        navigator.share({ title: 'Crowned on COOKED', files: [file] });
+                      }).catch(() => alert('Saved image to clipboard!'));
+                    } else if (crownedMemeUrl) {
                       const link = document.createElement('a');
                       link.download = `crowned-meme.png`;
-                      link.href = hallStitchedImage;
+                      link.href = crownedMemeUrl;
                       link.click();
                     }
                   }}
-                  class="w-full py-2.5 bg-orange-600 hover:bg-orange-500 text-xs font-bold rounded-xl transition flex items-center justify-center space-x-2 text-white shadow-md"
+                  class="w-full py-2.5 bg-orange-600 hover:bg-orange-500 text-xs font-bold rounded-xl transition flex items-center justify-center space-x-2 text-white shadow"
                 >
                   <i class="fa-solid fa-share-nodes"></i>
                   <span>Share Meme</span>
@@ -706,80 +623,62 @@ function CookedApp() {
             </div>
           )}
 
-          {/* TAB 4: PROFILE SETTINGS (AUTO-SAVING & UNIQUE @) */}
+          {/* TAB 4: PROFILE SETTINGS */}
           {tab === 'profile' && (
             <div class="space-y-4">
               <h2 class="text-lg font-black mb-1 flex items-center space-x-2">
                 <i class="fa-solid fa-user-gear text-orange-500"></i>
-                <span>Profile Settings</span>
+                <span>Chef Profile</span>
               </h2>
 
               <div class="p-4 bg-slate-50 dark:bg-[#111622] rounded-2xl border border-slate-200 dark:border-[#1e2638] space-y-4 shadow-xl">
-                {/* User Card */}
                 <div class="flex items-center space-x-3">
                   <div class="w-14 h-14 bg-orange-100 dark:bg-orange-950/40 border border-orange-500/40 rounded-2xl flex items-center justify-center text-2xl text-orange-500">
-                    <i class={`fa-solid ${userProfile.avatar}`}></i>
+                    <i class={`fa-solid ${avatar}`}></i>
                   </div>
                   <div>
-                    <h3 class="font-black text-base">{usernameInput}</h3>
-                    <p class="text-xs text-orange-500 font-mono font-bold">{userProfile.title}</p>
-                    <span class="text-[10px] text-gray-400 font-mono">Spices: {userProfile.spices}</span>
+                    <h3 class="font-black text-base">{username}</h3>
+                    <p class="text-xs text-orange-500 font-mono font-bold">{title}</p>
+                    <span class="text-[10px] text-gray-400 font-mono">Spices: {spices}</span>
                   </div>
                 </div>
 
                 <hr class="border-slate-200 dark:border-gray-800" />
 
-                {/* Handle Input with non-deletable @ & uniqueness auto-check */}
-                <div class="space-y-1.5">
-                  <label class="text-xs text-gray-500 font-medium">Handle (Unique)</label>
+                <div>
+                  <label class="text-xs text-gray-500 font-medium block mb-1">Handle (Enforced Unique @)</label>
                   <input
                     type="text"
                     maxLength={16}
-                    value={usernameInput}
-                    onChange={(e) => handleUsernameChange(e.target.value)}
+                    value={username}
+                    onChange={handleHandleChange}
                     class="w-full bg-white dark:bg-black border border-slate-300 dark:border-gray-700 rounded-lg p-2.5 text-xs font-mono focus:outline-none focus:border-orange-500"
                   />
-                  <p class={`text-[10px] font-mono ${
-                    usernameStatus.state === 'error' ? 'text-red-500' :
-                    usernameStatus.state === 'saved' ? 'text-emerald-500' : 'text-gray-400'
-                  }`}>
-                    {usernameStatus.msg}
-                  </p>
+                  <p class={`text-[10px] font-mono mt-1 ${userStatus.includes('⚠️') ? 'text-red-500' : 'text-emerald-500'}`}>{userStatus}</p>
                 </div>
 
-                {/* Pick Avatar Icon */}
-                <div class="space-y-1.5">
-                  <label class="text-xs text-gray-500 font-medium">Avatar</label>
+                <div>
+                  <label class="text-xs text-gray-500 font-medium block mb-1">Avatar</label>
                   <div class="grid grid-cols-5 gap-2">
-                    {['fa-hat-chef', 'fa-fire', 'fa-skull', 'fa-cat', 'fa-crown'].map(icon => (
+                    {['fa-hat-chef', 'fa-fire', 'fa-skull', 'fa-cat', 'fa-crown'].map(ic => (
                       <button
-                        key={icon}
-                        onClick={() => {
-                          setUserProfile(p => ({ ...p, avatar: icon }));
-                          localStorage.setItem('cooked_avatar', icon);
-                        }}
-                        class={`h-10 rounded-lg border flex items-center justify-center text-sm transition ${
-                          userProfile.avatar === icon
-                            ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/40 text-orange-500'
-                            : 'border-slate-200 dark:border-gray-800 text-gray-400'
+                        key={ic}
+                        onClick={() => setAvatar(ic)}
+                        class={`h-10 rounded-lg border flex items-center justify-center text-sm ${
+                          avatar === ic ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/40 text-orange-500' : 'border-slate-200 dark:border-gray-800 text-gray-400'
                         }`}
                       >
-                        <i class={`fa-solid ${icon}`}></i>
+                        <i class={`fa-solid ${ic}`}></i>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Title Selection */}
-                <div class="space-y-1.5">
-                  <label class="text-xs text-gray-500 font-medium">Chef Title</label>
+                <div>
+                  <label class="text-xs text-gray-500 font-medium block mb-1">Chef Title</label>
                   <select
-                    value={userProfile.title}
-                    onChange={(e) => {
-                      const t = e.target.value;
-                      setUserProfile(p => ({ ...p, title: t }));
-                      localStorage.setItem('cooked_title', t);
-                    }}
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
                     class="w-full bg-white dark:bg-black border border-slate-300 dark:border-gray-700 rounded-lg p-2 text-xs font-mono focus:outline-none focus:border-orange-500"
                   >
                     <option value="Line Cook">Line Cook (0 Spices)</option>
@@ -792,13 +691,13 @@ function CookedApp() {
             </div>
           )}
 
-          {/* TAB 5: MASTER ADMIN COCKPIT */}
+          {/* TAB 5: ADMIN MASTER COCKPIT */}
           {tab === 'admin' && (
             <div class="space-y-4">
               {!isAdminAuth ? (
                 <div class="p-6 bg-slate-50 dark:bg-[#111622] rounded-2xl border border-red-500/40 text-center space-y-4 shadow-2xl">
-                  <i class="fa-solid fa-shield-halved text-4xl text-red-500 animate-pulse"></i>
-                  <h3 class="font-bold">Owner Authentication</h3>
+                  <i class="fa-solid fa-shield-halved text-4xl text-red-500"></i>
+                  <h3 class="font-bold">Admin Verification</h3>
                   <input
                     type="password"
                     maxLength={4}
@@ -818,92 +717,72 @@ function CookedApp() {
                       Authenticate
                     </button>
                   </div>
-                  <p class="text-[10px] text-gray-400 font-mono">Current PIN: {adminPin}</p>
+                  <p class="text-[10px] text-gray-400 font-mono">Default PIN: {adminPin}</p>
                 </div>
               ) : (
                 <div class="space-y-4 text-xs pb-10">
                   <div class="flex justify-between items-center bg-red-950/40 p-3 rounded-xl border border-red-800">
-                    <span class="font-black text-red-400 flex items-center space-x-1.5">
-                      <i class="fa-solid fa-radiation"></i>
-                      <span>MASTER CONTROL COCKPIT</span>
-                    </span>
+                    <span class="font-black text-red-400"><i class="fa-solid fa-radiation mr-1"></i>MASTER COCKPIT</span>
                     <button onClick={() => setIsAdminAuth(false)} class="text-[10px] bg-red-900/60 px-2.5 py-1 rounded font-bold text-white">Lock</button>
                   </div>
 
-                  {/* 1. APPROVE USER SUBMITTED MEMES FOR DUEL */}
+                  {/* Approve Submissions */}
                   <div class="bg-slate-50 dark:bg-[#111622] p-3.5 rounded-xl border border-slate-200 dark:border-[#1e2638] space-y-2">
-                    <h4 class="font-bold uppercase tracking-wider text-[11px] text-orange-500">Meme Duel Approval Queue</h4>
-                    {pendingDropSubmissions.length === 0 ? (
-                      <p class="text-emerald-500 font-mono text-[10px]">✨ No pending meme uploads.</p>
+                    <h4 class="font-bold uppercase tracking-wider text-[11px] text-orange-500">Meme Approval Queue</h4>
+                    {pendingDrops.length === 0 ? (
+                      <p class="text-emerald-500 font-mono text-[10px]">✨ Queue is clean!</p>
                     ) : (
-                      pendingDropSubmissions.map(sub => (
+                      pendingDrops.map(sub => (
                         <div key={sub.id} class="p-2.5 bg-white dark:bg-black/40 rounded-lg border border-slate-200 dark:border-gray-800 flex items-center justify-between space-x-2">
                           <img src={sub.image_url} class="w-12 h-12 object-cover rounded" />
                           <div class="flex-1 truncate">
                             <span class="font-bold text-[10px] text-orange-400 block">{sub.author}</span>
-                            <span class="text-gray-400 text-[10px] truncate block">{sub.suggested_caption || 'No caption'}</span>
+                            <span class="text-gray-400 text-[10px] truncate block">{sub.caption}</span>
                           </div>
                           <div class="flex space-x-1">
-                            <button
-                              onClick={() => handleAdminApproveSubmission(sub)}
-                              class="bg-emerald-600 text-white px-2 py-1 rounded text-[10px] font-bold"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => setPendingDropSubmissions(pendingDropSubmissions.filter(x => x.id !== sub.id))}
-                              class="bg-red-600 text-white px-2 py-1 rounded text-[10px] font-bold"
-                            >
-                              Reject
-                            </button>
+                            <button onClick={() => handleApproveSubmission(sub)} class="bg-emerald-600 text-white px-2 py-1 rounded text-[10px] font-bold">Approve</button>
+                            <button onClick={() => setPendingDrops(pendingDrops.filter(x => x.id !== sub.id))} class="bg-red-600 text-white px-2 py-1 rounded text-[10px] font-bold">Reject</button>
                           </div>
                         </div>
                       ))
                     )}
                   </div>
 
-                  {/* 2. SEND DIRECT INBOX NOTIFICATION */}
+                  {/* Custom Inbox Dispatcher */}
                   <div class="bg-slate-50 dark:bg-[#111622] p-3.5 rounded-xl border border-slate-200 dark:border-[#1e2638] space-y-2">
                     <h4 class="font-bold uppercase tracking-wider text-[11px] text-orange-500">Dispatch Inbox Message</h4>
-                    <div class="space-y-1.5">
-                      <input
-                        type="text"
-                        placeholder="Target Handle (e.g. @chef_1234)"
-                        value={inboxTargetUser}
-                        onChange={(e) => setInboxTargetUser(e.target.value)}
-                        class="w-full bg-white dark:bg-black border border-slate-300 dark:border-gray-700 rounded p-1.5 text-[10px] font-mono"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Message Title"
-                        value={inboxTitle}
-                        onChange={(e) => setInboxTitle(e.target.value)}
-                        class="w-full bg-white dark:bg-black border border-slate-300 dark:border-gray-700 rounded p-1.5 text-[10px]"
-                      />
-                      <textarea
-                        placeholder="Notification text..."
-                        value={inboxMessage}
-                        onChange={(e) => setInboxMessage(e.target.value)}
-                        class="w-full bg-white dark:bg-black border border-slate-300 dark:border-gray-700 rounded p-1.5 text-[10px] h-14 resize-none"
-                      ></textarea>
-                      <button
-                        onClick={handleSendCustomNotification}
-                        class="w-full py-1.5 bg-orange-600 text-white font-bold rounded text-[10px]"
-                      >
-                        Send to User's Inbox
-                      </button>
-                    </div>
+                    <input
+                      type="text"
+                      placeholder="Target @handle"
+                      value={customUser}
+                      onChange={(e) => setCustomUser(e.target.value)}
+                      class="w-full bg-white dark:bg-black border border-slate-300 dark:border-gray-700 rounded p-1.5 text-[10px] font-mono"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Title"
+                      value={customTitle}
+                      onChange={(e) => setCustomTitle(e.target.value)}
+                      class="w-full bg-white dark:bg-black border border-slate-300 dark:border-gray-700 rounded p-1.5 text-[10px]"
+                    />
+                    <textarea
+                      placeholder="Message..."
+                      value={customMsg}
+                      onChange={(e) => setCustomMsg(e.target.value)}
+                      class="w-full bg-white dark:bg-black border border-slate-300 dark:border-gray-700 rounded p-1.5 text-[10px] h-12 resize-none"
+                    ></textarea>
+                    <button onClick={handleSendInbox} class="w-full py-1.5 bg-orange-600 text-white font-bold rounded text-[10px]">Send Notification</button>
                   </div>
 
-                  {/* 3. MANUALLY PURGE USERNAMES */}
+                  {/* Purge Username Locks */}
                   <div class="bg-slate-50 dark:bg-[#111622] p-3.5 rounded-xl border border-slate-200 dark:border-[#1e2638] space-y-2">
                     <h4 class="font-bold uppercase tracking-wider text-[11px] text-orange-500">Purge Username Lock</h4>
                     <button
                       onClick={async () => {
-                        const target = prompt('Enter handle to purge from unique registration (e.g. @chef_99):');
-                        if (target && isSupabaseLive) {
+                        const target = prompt('Enter handle to purge (e.g. @chef_99):');
+                        if (target && isLive) {
                           await supabase.from('user_profiles').delete().eq('username', target.trim().toLowerCase());
-                          alert(`Username ${target} purged! Now free to register.`);
+                          alert(`Purged ${target}!`);
                         }
                       }}
                       class="w-full py-2 bg-red-800 text-white font-bold rounded text-[10px]"
@@ -912,34 +791,21 @@ function CookedApp() {
                     </button>
                   </div>
 
-                  {/* 4. CHANGE MASTER PIN */}
+                  {/* Change PIN & Kill Switches */}
                   <div class="bg-slate-50 dark:bg-[#111622] p-3.5 rounded-xl border border-slate-200 dark:border-[#1e2638] space-y-2">
-                    <h4 class="font-bold uppercase tracking-wider text-[11px] text-orange-500">Change Master PIN</h4>
-                    <div class="flex space-x-2">
-                      <input
-                        type="text"
-                        maxLength={4}
-                        placeholder="New 4-digit PIN"
-                        value={newPinInput}
-                        onChange={(e) => setNewPinInput(e.target.value)}
-                        class="bg-white dark:bg-black border border-slate-300 dark:border-gray-700 rounded p-1.5 text-[10px] font-mono flex-1"
-                      />
-                      <button
-                        onClick={() => {
-                          if (newPinInput.length === 4 && !isNaN(newPinInput)) {
-                            setAdminPin(newPinInput);
-                            if (isSupabaseLive) supabase.from('app_config').update({ admin_pin: newPinInput }).eq('id', 1);
-                            setNewPinInput('');
-                            setPinNotice(true);
-                            setTimeout(() => setPinNotice(false), 3000);
-                          } else alert('PIN must be 4 digits.');
-                        }}
-                        class="bg-orange-600 px-3 py-1.5 rounded font-bold text-white text-[10px]"
-                      >
-                        Update
-                      </button>
+                    <h4 class="font-bold uppercase tracking-wider text-[11px] text-orange-500">Controls & Switches</h4>
+                    <div class="flex justify-between items-center">
+                      <span>Allow Submissions</span>
+                      <input type="checkbox" checked={submissionsOpen} onChange={(e) => { setSubmissionsOpen(e.target.checked); if (isLive) supabase.from('app_config').update({ submissions_open: e.target.checked }).eq('id', 1); }} class="w-4 h-4 accent-orange-500" />
                     </div>
-                    {pinNotice && <p class="text-emerald-500 font-mono text-[9px]">PIN updated!</p>}
+                    <div class="flex justify-between items-center">
+                      <span>Enable Voting</span>
+                      <input type="checkbox" checked={votingOpen} onChange={(e) => { setVotingOpen(e.target.checked); if (isLive) supabase.from('app_config').update({ voting_open: e.target.checked }).eq('id', 1); }} class="w-4 h-4 accent-orange-500" />
+                    </div>
+                    <div class="flex justify-between items-center">
+                      <span class="text-red-400 font-bold">Maintenance Mode</span>
+                      <input type="checkbox" checked={maintenanceMode} onChange={(e) => { setMaintenanceMode(e.target.checked); if (isLive) supabase.from('app_config').update({ maintenance_mode: e.target.checked }).eq('id', 1); }} class="w-4 h-4 accent-red-600" />
+                    </div>
                   </div>
                 </div>
               )}
@@ -948,18 +814,14 @@ function CookedApp() {
         </main>
       )}
 
-      {/* INBOX / NOTIFICATIONS MODAL */}
+      {/* Inbox Notification Modal */}
       {showInbox && (
         <div class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div class="bg-white dark:bg-[#111622] border border-slate-200 dark:border-[#1e2638] w-full max-w-sm rounded-2xl p-5 space-y-3 shadow-2xl">
             <div class="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-gray-800">
-              <h3 class="font-black text-sm text-orange-500 flex items-center space-x-1.5">
-                <i class="fa-solid fa-inbox"></i>
-                <span>Notifications & Inbox</span>
-              </h3>
-              <button onClick={() => setShowInbox(false)} class="text-gray-400 hover:text-white">✕</button>
+              <h3 class="font-black text-sm text-orange-500"><i class="fa-solid fa-inbox mr-1.5"></i>Inbox</h3>
+              <button onClick={() => setShowInbox(false)}>✕</button>
             </div>
-
             <div class="max-h-60 overflow-y-auto space-y-2">
               {notifications.length === 0 ? (
                 <p class="text-xs text-gray-400 text-center py-4">No notifications yet.</p>
@@ -976,15 +838,15 @@ function CookedApp() {
         </div>
       )}
 
-      {/* BOTTOM TAB NAVIGATION */}
+      {/* Bottom Bar */}
       <nav class="h-16 bg-white dark:bg-[#111622] border-t border-slate-200 dark:border-[#1c2433] flex items-center justify-around fixed bottom-0 left-0 right-0 max-w-md mx-auto z-10">
         <button onClick={() => setTab('duel')} class={`flex flex-col items-center ${tab === 'duel' ? 'text-orange-500' : 'text-gray-400'}`}>
           <i class="fa-solid fa-fire text-lg"></i>
           <span class="text-[10px] font-bold mt-1">Duel</span>
         </button>
         <button onClick={() => setTab('cook')} class={`flex flex-col items-center ${tab === 'cook' ? 'text-orange-500' : 'text-gray-400'}`}>
-          <i class="fa-solid fa-utensils text-lg"></i>
-          <span class="text-[10px] font-bold mt-1">Cook</span>
+          <i class="fa-solid fa-cloud-arrow-up text-lg"></i>
+          <span class="text-[10px] font-bold mt-1">Upload</span>
         </button>
         <button onClick={() => setTab('hall')} class={`flex flex-col items-center ${tab === 'hall' ? 'text-orange-500' : 'text-gray-400'}`}>
           <i class="fa-solid fa-trophy text-lg"></i>
@@ -1000,7 +862,7 @@ function CookedApp() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<CookedApp />);
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 </body>
 </html>
